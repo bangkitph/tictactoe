@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tic Tac Toe - 3 LEVEL AI (FIX TENGAH)</title>
+    <style>
+        body { 
+            background: #1a1a2e; 
+            color: white; 
+            text-align: center; 
+            font-family: Arial; 
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .board { 
+            display: grid; 
+            grid-template-columns: repeat(3, 120px); 
+            gap: 10px; 
+            margin: 30px auto; 
+            justify-content: center;
+            max-width: 400px;
+        }
+        .cell { 
+            width: 120px; 
+            height: 120px; 
+            background: #16213e; 
+            border: 4px solid #0f3460; 
+            font-size: 60px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .cell:hover { background: #533483; }
+        #status { font-size: 28px; margin: 20px; }
+        select, button { padding: 12px 20px; font-size: 18px; background: #e94560; color: white; border: none; border-radius: 8px; cursor: pointer; margin: 5px; }
+        select { background: #0f3460; }
+        .level-info { font-size: 14px; color: #ccc; }
+    </style>
+</head>
+<body>
+    <h1>❌ Tic-Tac-Toe LEVEL 2</h1>
+    <div>
+        <label>Pilih Level AI: </label>
+        <select id="difficulty">
+            <option value="easy">🟢 Easy (Random)</option>
+            <option value="medium" selected>🟡 Medium (50% Pintar)</option>
+            <option value="hard">🔴 Hard (Minimax Perfect)</option>
+        </select>
+        <button onclick="resetGame()">🔄 New Game</button>
+    </div>
+    <div id="status">Kamu X, pilih level lalu klik kotak!</div>
+    <div class="board" id="board"></div>
+    <div class="level-info" id="levelInfo"></div>
+
+    <script>
+        let board = Array(9).fill('');
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let difficulty = 'medium';
+        const statusEl = document.getElementById('status');
+        const boardEl = document.getElementById('board');
+        const diffSelect = document.getElementById('difficulty');
+        const levelInfo = document.getElementById('levelInfo');
+
+        const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+        diffSelect.addEventListener('change', (e) => {
+            difficulty = e.target.value;
+            updateLevelInfo();
+        });
+
+        function updateLevelInfo() {
+            const info = {
+                easy: 'AI main RANDOM - gampang dilupain!',
+                medium: 'AI 50% pintar, 50% ngaco - tantangan!',
+                hard: 'AI MINIMAX - hampir ga bisa menang!'
+            };
+            levelInfo.textContent = info[difficulty];
+        }
+
+        function createBoard() {
+            boardEl.innerHTML = '';
+            board.forEach((cell, i) => {
+                const div = document.createElement('div');
+                div.className = 'cell';
+                div.textContent = cell;
+                div.onclick = () => makeMove(i);
+                boardEl.appendChild(div);
+            });
+        }
+
+        function makeMove(index) {
+            if (board[index] || !gameActive || currentPlayer !== 'X') return;
+            
+            board[index] = 'X';
+            currentPlayer = 'O';
+            createBoard();
+            
+            if (checkWin('X')) return endGame('Kamu Menang! 🎉');
+            if (board.every(c => c)) return endGame('Seri! 🤝');
+            
+            setTimeout(aiMove, 400);
+        }
+
+        function aiMove() {
+            let move;
+            if (difficulty === 'hard') {
+                move = minimax(board, 'O').index;
+            } else if (difficulty === 'medium') {
+                if (Math.random() < 0.5) {
+                    move = minimax(board, 'O').index;
+                } else {
+                    let empty = getEmptyCells();
+                    move = empty[Math.floor(Math.random() * empty.length)];
+                }
+            } else {
+                let empty = getEmptyCells();
+                move = empty[Math.floor(Math.random() * empty.length)];
+            }
+            
+            board[move] = 'O';
+            currentPlayer = 'X';
+            createBoard();
+            
+            if (checkWin('O')) return endGame('AI Menang! 😈');
+            if (board.every(c => c)) return endGame('Seri! 🤝');
+        }
+
+        function getEmptyCells() {
+            return board.map((c,i) => c === '' ? i : -1).filter(i => i > -1);
+        }
+
+        function minimax(newBoard, player) {
+            let empty = getEmptyCellsFromBoard(newBoard);
+            
+            if (checkWinner(newBoard, 'X')) return { score: -10 };
+            if (checkWinner(newBoard, 'O')) return { score: 10 };
+            if (empty.length === 0) return { score: 0 };
+
+            let moves = [];
+            for (let i of empty) {
+                let move = { index: i };
+                let tempBoard = [...newBoard];
+                tempBoard[i] = player;
+                
+                if (player === 'O') {
+                    move.score = minimax(tempBoard, 'X').score;
+                } else {
+                    move.score = minimax(tempBoard, 'O').score;
+                }
+                moves.push(move);
+            }
+
+            let bestMove;
+            if (player === 'O') {
+                let bestScore = -Infinity;
+                for (let move of moves) {
+                    if (move.score > bestScore) {
+                        bestScore = move.score;
+                        bestMove = move;
+                    }
+                }
+            } else {
+                let bestScore = Infinity;
+                for (let move of moves) {
+                    if (move.score < bestScore) {
+                        bestScore = move.score;
+                        bestMove = move;
+                    }
+                }
+            }
+            return bestMove;
+        }
+
+        function getEmptyCellsFromBoard(testBoard) {
+            return testBoard.map((c,i) => c === '' ? i : -1).filter(i => i > -1);
+        }
+
+        function checkWinner(testBoard, player) {
+            return winningCombos.some(combo => 
+                combo.every(i => testBoard[i] === player)
+            );
+        }
+
+        function checkWin(player) {
+            return checkWinner(board, player);
+        }
+
+        function endGame(message) {
+            statusEl.textContent = message;
+            gameActive = false;
+        }
+
+        function resetGame() {
+            board = Array(9).fill('');
+            currentPlayer = 'X';
+            gameActive = true;
+            difficulty = diffSelect.value;
+            statusEl.textContent = 'Kamu X, klik kotak!';
+            updateLevelInfo();
+            createBoard();
+        }
+
+        updateLevelInfo();
+        createBoard();
+    </script>
+</body>
+</html>
